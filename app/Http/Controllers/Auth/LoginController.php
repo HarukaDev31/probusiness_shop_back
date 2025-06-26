@@ -23,7 +23,8 @@ class LoginController extends Controller
             return response()->json(['error' => 'Credenciales incorrectas'], 401);
         }
 
-        $user = auth()->user();
+        $authUser = auth()->user();
+        $user = User::find($authUser->id);
         $user->api_token = $token;
         $user->save();
 
