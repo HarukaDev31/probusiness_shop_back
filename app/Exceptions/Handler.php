@@ -38,4 +38,15 @@ class Handler extends ExceptionHandler
             //
         });
     }
+
+    /**
+     * Override unauthenticated exception for API to return JSON instead of redirect.
+     */
+    protected function unauthenticated($request, \Illuminate\Auth\AuthenticationException $exception)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['error' => 'No autenticado.'], 401);
+        }
+        return redirect()->guest(route('login'));
+    }
 }
