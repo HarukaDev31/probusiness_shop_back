@@ -33,7 +33,7 @@ class OrderRequest extends FormRequest
             'phone' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'ruc' => 'sometimes|nullable|string|max:255',
-            'businessName' => 'required_if:documentType,factura|string|max:255',
+            'businessName' => 'nullable|required_if:documentType,factura|string|max:255',
             'city' => 'required|string|max:255',
             'items' => 'required|array',
             'items.*.id' => 'required|integer',

@@ -19,12 +19,15 @@ class OrderController extends Controller
         try {
            
             $uuid = Str::uuid()->toString();
+            $userId = auth()->check() ? auth()->id() : null;
+            Log::info('Auth user', ['user' => auth()->user(), 'id' => auth()->id()]);
             $orderId = DB::table('orders')->insertGetId([
                 'order_id' => $uuid,
+                'user_id' => $userId,
                 'email' => $request['email'],
                 'full_name' => $request['fullName'],
                 'dni' => $request['dni'],
-                'document_type' => $request['documentType'],
+                'document_type' => $request['documentType'],    
                 'phone' => $request['phone'],
                 'address' => $request['address'],
                 'ruc' => $request['ruc'],
