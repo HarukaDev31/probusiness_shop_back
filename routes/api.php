@@ -22,3 +22,5 @@ Route::middleware('throttle:5,1')->post('/orders', [\App\Http\Controllers\OrderC
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
 Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
 Route::middleware('guest.api')->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
+Route::middleware('throttle:20,1')->get('/getProductsToScrapping', [\App\Http\Controllers\ScrappingController::class, 'getProductsToScrapping'])->name('scrapping.getProductsToScrapping');
+Route::middleware('throttle:60,1')->post('/markProductsCompleted', [\App\Http\Controllers\ScrappingController::class, 'markProductsCompleted'])->name('scrapping.markProductsCompleted');
