@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,3 +20,5 @@ Route::middleware('throttle:100,1')->get('/products/{id}', [\App\Http\Controller
 Route::middleware('throttle:5,1')->post('/orders', [\App\Http\Controllers\OrderController::class, 'store'])->name('orders.store');
 //for post products
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
+Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
+Route::middleware('guest.api')->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
