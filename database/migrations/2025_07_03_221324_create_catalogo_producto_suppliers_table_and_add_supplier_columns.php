@@ -28,9 +28,9 @@ class CreateCatalogoProductoSuppliersTableAndAddSupplierColumns extends Migratio
         });
 
         // Agregar foreign key
-        Schema::table('catalogo_producto', function (Blueprint $table) {
-            $table->foreign('supplier_id')->references('id')->on('catalogo_producto_suppliers');
-        });
+//        Schema::table('catalogo_producto', function (Blueprint $table) {
+  //          $table->foreign('supplier_id')->references('id')->on('catalogo_producto_suppliers');
+    //    });
     }
 
     /**
