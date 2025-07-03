@@ -14,7 +14,7 @@ class CreateCatalogoProductoSuppliersTableAndAddSupplierColumns extends Migratio
     public function up()
     {
         // Crear tabla catalogo_producto_suppliers
-        Schema::create('catalogo_producto_suppliers', function (Blueprint $table) {
+      /*   Schema::create('catalogo_producto_suppliers', function (Blueprint $table) {
             $table->id();
             $table->text('supplier_name');
             $table->timestamps();
@@ -26,7 +26,7 @@ class CreateCatalogoProductoSuppliersTableAndAddSupplierColumns extends Migratio
             $table->text('packaging_info')->nullable();
             $table->text('delivery_lead_times')->nullable();
         });
-
+ */
         // Agregar foreign key
 //        Schema::table('catalogo_producto', function (Blueprint $table) {
   //          $table->foreign('supplier_id')->references('id')->on('catalogo_producto_suppliers');
