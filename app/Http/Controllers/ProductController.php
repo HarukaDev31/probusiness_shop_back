@@ -17,7 +17,7 @@ class ProductController extends Controller
         $search = $request->input('search', null);
         $page = $request->input('current_page', 1);
         $allCategories = $request->input('all_categories', false);
-
+        $supplierId = $request->input('supplier', null);
         if ($allCategories) {
             // Obtener todas las categorías
             $categories = DB::table('catalogo_producto_category')->get();
@@ -29,6 +29,11 @@ class ProductController extends Controller
                     ->join('catalogo_producto_category as c', 'p.category_id', '=', 'c.id')
                     ->select('p.*', 'c.name as category_name', 'c.id as category_id')
                     ->where('p.status', 'EN TIENDA')
+                    ->where(function ($query) use ($supplierId) {
+                        if ($supplierId) {
+                            $query->where('p.supplier_id', $supplierId);
+                        }
+                    })
                     ->where('p.category_id', $category->id)
                     ->where(function ($query) use ($search) {
                         if ($search) {
@@ -36,8 +41,9 @@ class ProductController extends Controller
                                 ->orWhere('c.name', 'LIKE', '%' . $search . '%');
                         }
                     })
+
                     ->orderBy('p.id')
-                    ->limit(5) // 5 productos por categoría
+                    ->limit($perCategory) // 5 productos por categoría
                     ->get();
 
                 $productsByCategory = $productsByCategory->merge($products);
@@ -70,7 +76,8 @@ class ProductController extends Controller
                     catalogo_producto p1,
                     (SELECT @rn := 0, @prev := 0) AS vars
                 WHERE 
-                    p1.status = "EN TIENDA"
+                    p1.status = "EN TIENDA"' .
+                    ($supplierId ? ' AND p1.supplier_id = ' . $supplierId : '') . '
                 ORDER BY 
                     p1.category_id, p1.id
             ) AS ranked'), 'p.id', '=', 'ranked.id')
@@ -86,6 +93,11 @@ class ProductController extends Controller
                     if ($search) {
                         $query->where('p.nombre', 'LIKE', '%' . $search . '%')
                             ->orWhere('c.name', 'LIKE', '%' . $search . '%');
+                    }
+                })
+                ->where(function ($query) use ($supplierId) {
+                    if ($supplierId) {
+                        $query->where('p.supplier_id', $supplierId);
                     }
                 });
 
@@ -142,124 +154,166 @@ class ProductController extends Controller
     }
     public function store(Request $request)
     {
-        //id|nombre|precio|qty_box|cbm_box|dias_entrega|delivery|colores|notas|whechat_phone|contact_card_url|main_image_url|aditional_image1_url|aditional_image2_url|aditional_video1_url|moq|servicio_impo|arancel|igv|antidumping|percepcion|status|precio_peru|precio_usd|cod_producto|category_id|prices_range|
-        $price = $request->input('price');
-        Log::info('Original price: ' . json_encode($price));
-        Log::info('Original price length: ' . strlen($price));
-        Log::info('Original price hex: ' . bin2hex($price));
+        try {
+            $prices = $request->input('prices', []);
 
-        // Paso 1: Limpiar más agresivamente
-        $cleanPrice = $price;
-        $cleanPrice = str_replace(['USD', '$', ' '], '', $cleanPrice); // Remover USD, $, y espacios
-        $cleanPrice = preg_replace('/[^\d.,]/', '', $cleanPrice); // Solo números, puntos y comas
-        $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
-        $cleanPrice = trim($cleanPrice);
-
-        Log::info('After cleaning: "' . $cleanPrice . '"');
-        Log::info('Cleaned price length: ' . strlen($cleanPrice));
-
-        // Paso 2: Convertir a float con validación
-        if (empty($cleanPrice) || !is_numeric($cleanPrice)) {
-            Log::error('Invalid numeric value: "' . $cleanPrice . '"');
+            // Extraer el primer precio y quantity para el precio principal y moq
             $price = 0;
-        } else {
-            $numericPrice = (float)$cleanPrice;
-            Log::info('Converted to float: ' . $numericPrice);
+            $moq = 1;
 
-            // Paso 3: Multiplicar por TC
-            $price = $numericPrice * 3.7;
-            Log::info('After multiplication by 3.7: ' . $price);
-        }
-        Log::info('Processed price: ' . $price);
-        //from $images get first 3 images and 1 video if exists and set them to the respective fields
-        $images = $request->input('images', []);
-        $mainImage = isset($images[0]) ? $images[0] : null;
-        $aditionalImage1 = isset($images[1]) ? $images[1] : null;
-        $aditionalImage2 = isset($images[2]) ? $images[2] : null;
-        $aditionalVideo1 = isset($images[3]) ? $images[3] : null;
-        //FROM PRODUCTS GET CODE YEAR-MONTH-(4 DIGITS WITH COUNT IN TIENDA PRODUCTS)
-        // Assuming the product code is generated based on the current date and a count of products in "EN TIENDA" status
-        $year = date('Y');
-        $month = date('m');
-        $count = DB::table('catalogo_producto')
-            ->where('status', 'EN TIENDA')
-            ->whereYear('created_at', $year)
-            ->whereMonth('created_at', $month)
-            ->count() + 1; // +1 to get the next count
-        $cod_producto = sprintf('%s-%s-%04d', $year, $month, $count);
+            if (!empty($prices) && isset($prices[0])) {
+                $firstPrice = $prices[0];
 
-        $prices = $request->input('prices', []);
-        foreach ($prices as &$row) {
-            Log::info('Original price: ' . json_encode($row['price']));
-            Log::info('Original price length: ' . strlen($row['price']));
-            Log::info('Original price hex: ' . bin2hex($row['price']));
+                // Procesar el precio del primer elemento
+                if (isset($firstPrice['price'])) {
+                    $cleanPrice = $firstPrice['price'];
+                    $cleanPrice = str_replace(['USD', '$', ' '], '', $cleanPrice); // Remover USD, $, y espacios
+                    $cleanPrice = preg_replace('/[^\d.,]/', '', $cleanPrice); // Solo números, puntos y comas
+                    $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
+                    $cleanPrice = trim($cleanPrice);
 
-            // Paso 1: Limpiar más agresivamente
-            $cleanPrice = $row['price'];
-            $cleanPrice = str_replace(['USD', ',     ', ' '], '', $cleanPrice);
-            $cleanPrice = preg_replace('/[^\d.,]/', '', $cleanPrice); // Solo números, puntos y comas
-            $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
-            $cleanPrice = trim($cleanPrice);
+                    Log::info('First price after cleaning: "' . $cleanPrice . '"');
 
-            Log::info('After cleaning: "' . $cleanPrice . '"');
-            Log::info('Cleaned price length: ' . strlen($cleanPrice));
+                    // Convertir a float con validación
+                    if (!empty($cleanPrice) && is_numeric($cleanPrice)) {
+                        $numericPrice = (float)$cleanPrice;
+                        Log::info('First price converted to float: ' . $numericPrice);
+                        // Multiplicar por TC
+                        $price = $numericPrice * 3.7;
+                        Log::info('First price after multiplication by 3.7: ' . $price);
+                    }
+                }
 
-            // Paso 2: Convertir a float con validación
-            if (empty($cleanPrice) || !is_numeric($cleanPrice)) {
-                Log::error('Invalid numeric value: "' . $cleanPrice . '"');
-                $numericPrice = 0;
-            } else {
-                $numericPrice = (float)$cleanPrice;
+                // Procesar el quantity del primer elemento para el moq
+                if (isset($firstPrice['quantity'])) {
+                    $quantity = $firstPrice['quantity'];
+                    Log::info('First quantity: ' . $quantity);
+
+                    // Extraer el número del quantity
+                    if (preg_match('/^(\d+)/', $quantity, $matches)) {
+                        // Si empieza con número, usar ese número
+                        $moq = (int)$matches[1];
+                    } elseif (preg_match('/>=?\s*(\d+)/', $quantity, $matches)) {
+                        // Si es formato ">= n", usar n
+                        $moq = (int)$matches[1];
+                    }
+
+                    Log::info('Extracted MOQ: ' . $moq);
+                }
+            }
+            //from $images get first 3 images and 1 video if exists and set them to the respective fields
+            $images = $request->input('images', []);
+            $mainImage = isset($images[0]) ? $images[0] : null;
+            $aditionalImage1 = isset($images[1]) ? $images[1] : null;
+            $aditionalImage2 = isset($images[2]) ? $images[2] : null;
+            $aditionalVideo1 = //find in images if there url ends in video extension and set it to the field
+                $aditionalVideo1 = null;
+            foreach ($images as $image) {
+                if (str_ends_with($image, '.mp4') || str_ends_with($image, '.mov') || str_ends_with($image, '.avi') || str_ends_with($image, '.wmv') || str_ends_with($image, '.flv') || str_ends_with($image, '.webm')) {
+                    $aditionalVideo1 = $image;
+                    break;
+                }
+            }
+            $year = date('Y');
+            $month = date('m');
+            $count = DB::table('catalogo_producto')
+                ->where('status', 'EN TIENDA')
+                ->whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->count() + 1; // +1 to get the next count
+            $cod_producto = sprintf('%s-%s-%04d', $year, $month, $count);
+
+            // Manejar supplier
+            $supplierId = null;
+            $supplierName = $request->input('supplier_name');
+
+            if ($supplierName) {
+                $supplierName = trim(strtoupper($supplierName));
+                Log::info('Processing supplier: ' . $supplierName);
+
+                // Buscar si el supplier ya existe
+                $existingSupplier = DB::table('catalogo_producto_suppliers')
+                    ->where('supplier_name', $supplierName)
+                    ->first();
+
+                if ($existingSupplier) {
+                    $supplierId = $existingSupplier->id;
+                    Log::info('Found existing supplier with ID: ' . $supplierId);
+                } else {
+                    // Crear nuevo supplier
+                    $supplierId = DB::table('catalogo_producto_suppliers')->insertGetId([
+                        'supplier_name' => $supplierName,
+
+                    ]);
+                    Log::info('Created new supplier with ID: ' . $supplierId);
+                }
             }
 
-            Log::info('Converted to float: ' . $numericPrice);
+            // Procesar todos los precios del array para prices_range
+            foreach ($prices as &$row) {
+                Log::info('Processing price: ' . json_encode($row['price']));
 
-            // Paso 3: Multiplicar por TC
-            $finalPrice = $numericPrice * 3.7;
-            Log::info('After multiplication: ' . $finalPrice);
+                $cleanPrice = $row['price'];
+                $cleanPrice = str_replace(['USD', ',     ', ' '], '', $cleanPrice);
+                $cleanPrice = preg_replace('/[^\d.,]/', '', $cleanPrice); // Solo números, puntos y comas
+                $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
+                $cleanPrice = trim($cleanPrice);
 
-            // Paso 4: Formatear con prefijo
-            $row['price'] = number_format($finalPrice, 2);
-            Log::info('Final formatted price: ' . $row['price']);
+                Log::info('After cleaning: "' . $cleanPrice . '"');
+
+                // Convertir a float con validación
+                if (empty($cleanPrice) || !is_numeric($cleanPrice)) {
+                    Log::error('Invalid numeric value: "' . $cleanPrice . '"');
+                    $numericPrice = 0;
+                } else {
+                    $numericPrice = (float)$cleanPrice;
+                }
+
+                Log::info('Converted to float: ' . $numericPrice);
+
+                // Multiplicar por TC
+                $finalPrice = $numericPrice * 3.7;
+                Log::info('After multiplication: ' . $finalPrice);
+
+                // Formatear con prefijo
+                $row['price'] = number_format($finalPrice, 2);
+                Log::info('Final formatted price: ' . $row['price']);
+            }
+
+
+            $data = [
+                'nombre' => $request->input('description'),
+                'precio' => $price,
+                'contact_card_url' => $request->input('contact_card_url'),
+                'main_image_url' => $mainImage,
+                'aditional_image1_url' => $aditionalImage1,
+                'aditional_image2_url' => $aditionalImage2,
+                'aditional_video1_url' => $aditionalVideo1,
+                'moq' => $moq,
+                'status' => "EN TIENDA",
+                'cod_producto' => $cod_producto,
+                'category_id' => $request->input('category_id'),
+                'supplier_id' => $supplierId,
+                'packaging_info' => json_encode($request->input('packaging_info')),
+                'delivery_lead_times' => json_encode($request->input('delivery_lead_times')),
+                'prices_range' => json_encode($prices),
+                'attributes' => json_encode($request->input('attributes', [])),
+                'product_details' => json_encode($request->input('iframe_content', [])['reconstructed_html']),
+            ];
+            $productId = DB::table('catalogo_producto')->insertGetId($data);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product created successfully',
+                'data' => ['id' => $productId],
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Error creating product: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error creating product',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-
-        $data = [
-            'nombre' => $request->input('description'),
-            'precio' => $price,
-            // 'qty_box' => $request->input('qty_box'),
-            // 'cbm_box' => $request->input('cbm_box'),
-            // 'dias_entrega' => $request->input('dias_entrega'),
-            // 'delivery' => $request->input('delivery'),
-            // 'colores' => $request->input('colores'),
-            // 'notas' => $request->input('notas'),
-            // 'whechat_phone' => $request->input('whechat_phone'),
-            'contact_card_url' => $request->input('contact_card_url'),
-            'main_image_url' => $mainImage,
-            'aditional_image1_url' => $aditionalImage1,
-            'aditional_image2_url' => $aditionalImage2,
-            'aditional_video1_url' => $aditionalVideo1,
-            'moq' => 1,
-            // 'servicio_impo' => $request->input('servicio_impo'),
-            // 'arancel' => $request->input('arancel'),
-            // 'igv' => $request->input('igv'),
-            // 'antidumping' => $request->input('antidumping'),
-            // 'percepcion' => $request->input('percepcion'),
-            'status' => "EN TIENDA",
-            // 'precio_peru' => $request->input('precio_peru'),
-            // 'precio_usd' => $request->input('precio_usd'),
-            'cod_producto' => $cod_producto,
-            'category_id' => 1,
-            'prices_range' => json_encode($prices),
-            'attributes' => json_encode($request->input('attributes', [])),
-            'product_details' => json_encode($request->input('iframe_content', [])['reconstructed_html']),
-        ];
-        $productId = DB::table('catalogo_producto')->insertGetId($data);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Product created successfully',
-            'data' => ['id' => $productId],
-        ], 201);
     }
 }

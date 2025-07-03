@@ -12,18 +12,26 @@ class ScrappingController extends Controller
     {
         //FROM TABLE products_to_scrapping get 2 products per category_id where status is pending
         try {
-            $products = DB::table(DB::raw('(
-            SELECT 
-                id, 
-                category_id, 
-                name, 
-                status,
-                ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY id) as row_num
-            FROM products_to_scrapping
-            WHERE status = "pending"
-        ) as ranked_products'))
-        ->where('row_num', '<=', 1)
-        ->get();
+            $products = DB::select("
+                SELECT 
+                    id, 
+                    category_id, 
+                    name, 
+                    status
+                FROM (
+                    SELECT 
+                        id, 
+                        category_id, 
+                        name, 
+                        status,
+                        @rn := IF(@prev_cat = category_id, @rn + 1, 1) as row_num,
+                        @prev_cat := category_id
+                    FROM products_to_scrapping, (SELECT @rn := 0, @prev_cat := NULL) vars
+                    WHERE status = 'pending'
+                    ORDER BY category_id, id
+                ) ranked_products
+                WHERE row_num <= 1
+            ");
 
             Log::info('Fetched products to scrapping', ['products' => $products]);
 
