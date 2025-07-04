@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\Storage;
 class ProductController extends Controller
 {
     /**
+     * Constante para el tipo de cambio
+     */
+    private const TC = 3.8;
+
+    /**
      * Descarga y guarda un video de Alibaba
      */
     private function downloadAndSaveVideo($videoUrl, $productId)
@@ -304,8 +309,10 @@ class ProductController extends Controller
                     // Convertir a float con validación
                     if (!empty($cleanPrice) && is_numeric($cleanPrice)) {
                         $numericPrice = (float)$cleanPrice;
-                        // Multiplicar por TC
-                        $price = $numericPrice * 3.7;
+                        // Aplicar fórmula: (precio + 0.5) * 1.6 * TC
+                        $priceWithAddition = $numericPrice + 0.5;
+                        $priceWithIncrease = $priceWithAddition * 1.6;
+                        $price = $priceWithIncrease * self::TC;
                     }
                 }
 
@@ -400,9 +407,10 @@ class ProductController extends Controller
                     $numericPrice = (float)$cleanPrice;
                 }
 
-
-                // Multiplicar por TC
-                $finalPrice = $numericPrice * 3.7;
+                // Aplicar fórmula: (precio + 0.5) * 1.6 * TC
+                $priceWithAddition = $numericPrice + 0.5;
+                $priceWithIncrease = $priceWithAddition * 1.6;
+                $finalPrice = $priceWithIncrease * self::TC;
 
                 // Formatear con prefijo
                 $row['price'] = number_format($finalPrice, 2);
@@ -455,7 +463,10 @@ class ProductController extends Controller
                         $type = 'video';
                         $finalUrl = $this->downloadAndSaveVideo($imageUrl, $productId);
                     }
-                    
+                    //if img is svg dont save it
+                    if (str_ends_with($imageUrl, '.svg')) {
+                        continue;
+                    }
                     $mediaData[] = [
                         'id_catalogo_producto' => $productId,
                         'url' => $finalUrl,
