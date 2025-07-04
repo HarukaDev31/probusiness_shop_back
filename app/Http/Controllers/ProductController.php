@@ -100,11 +100,12 @@ class ProductController extends Controller
                             $fileSize = Storage::size($fullPath);
                             Log::info('Video saved successfully. File size: ' . $fileSize . ' bytes');
                             
-                            // Retornar la ruta absoluta del video guardado
-                            $absolutePath = storage_path('app/' . $fullPath);
-                            Log::info('Video downloaded and saved successfully: ' . $absolutePath);
+                            // Retornar APP_URL + ruta relativa del video guardado
+                            $relativePath = 'storage/' . str_replace('public/', '', $fullPath);
+                            $fullUrl = config('app.url') . '/' . $relativePath;
+                            Log::info('Video downloaded and saved successfully: ' . $fullUrl);
                             
-                            return $absolutePath;
+                            return $fullUrl;
                         } else {
                             Log::error('Failed to save video file to storage');
                             return $videoUrl;
