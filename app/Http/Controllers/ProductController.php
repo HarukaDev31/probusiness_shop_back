@@ -5,9 +5,126 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    /**
+     * Descarga y guarda un video de Alibaba
+     */
+    private function downloadAndSaveVideo($videoUrl, $productId)
+    {
+        try {
+            // Verificar si es una URL de Alibaba
+            if (strpos($videoUrl, 'gv.videocdn.alibaba.com') !== false || 
+                strpos($videoUrl, 'api.allorigins.win') !== false) {
+                
+                Log::info('Downloading video from Alibaba: ' . $videoUrl);
+                
+                // Crear directorio para videos si no existe
+                $videoPath = 'public/videos/products/' . $productId;
+                if (!Storage::exists($videoPath)) {
+                    Storage::makeDirectory($videoPath);
+                }
+                
+                // Generar nombre único para el archivo
+                $fileName = 'video_' . time() . '_' . uniqid() . '.mp4';
+                $fullPath = $videoPath . '/' . $fileName;
+                
+                // Configuración específica para videos de Alibaba
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $videoUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 600); // 10 minutos de timeout para videos grandes
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Accept: video/mp4,video/*;q=0.9,*/*;q=0.8',
+                    'Accept-Language: en-US,en;q=0.5',
+                    'Accept-Encoding: gzip, deflate',
+                    'Connection: keep-alive',
+                    'Upgrade-Insecure-Requests: 1',
+                    'Cache-Control: no-cache',
+                    'Pragma: no-cache'
+                ]);
+                curl_setopt($ch, CURLOPT_ENCODING, ''); // Aceptar cualquier encoding
+                curl_setopt($ch, CURLOPT_MAXREDIRS, 10); // Máximo 10 redirecciones
+                
+                // Para URLs de Alibaba específicamente, agregar headers adicionales
+                if (strpos($videoUrl, 'gv.videocdn.alibaba.com') !== false) {
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'Accept: video/mp4,video/*;q=0.9,*/*;q=0.8',
+                        'Accept-Language: en-US,en;q=0.5',
+                        'Accept-Encoding: gzip, deflate',
+                        'Connection: keep-alive',
+                        'Upgrade-Insecure-Requests: 1',
+                        'Cache-Control: no-cache',
+                        'Pragma: no-cache',
+                        'Referer: https://www.alibaba.com/',
+                        'Origin: https://www.alibaba.com',
+                        'Sec-Fetch-Dest: video',
+                        'Sec-Fetch-Mode: cors',
+                        'Sec-Fetch-Site: same-site'
+                    ]);
+                }
+                
+                $videoContent = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+                $contentLength = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+                
+                if (curl_errno($ch)) {
+                    Log::error('cURL Error: ' . curl_error($ch));
+                    curl_close($ch);
+                    return $videoUrl; // Retornar URL original si falla
+                }
+                
+                curl_close($ch);
+                
+                Log::info('Download response - HTTP Code: ' . $httpCode . ', Content-Type: ' . $contentType . ', Content-Length: ' . $contentLength);
+                
+                if ($httpCode === 200 && !empty($videoContent)) {
+                    // Verificar que el contenido sea realmente un video
+                    if (strpos($contentType, 'video/') === 0 || 
+                        strpos($contentType, 'application/octet-stream') === 0 ||
+                        strpos($contentType, 'binary/octet-stream') === 0 ||
+                        $contentLength > 1000) { // Mínimo 1KB para ser considerado un video válido
+                        
+                        // Guardar el video
+                        Storage::put($fullPath, $videoContent);
+                        
+                        // Verificar que el archivo se guardó correctamente
+                        if (Storage::exists($fullPath)) {
+                            $fileSize = Storage::size($fullPath);
+                            Log::info('Video saved successfully. File size: ' . $fileSize . ' bytes');
+                            
+                            // Retornar la ruta absoluta del video guardado
+                            $absolutePath = storage_path('app/' . $fullPath);
+                            Log::info('Video downloaded and saved successfully: ' . $absolutePath);
+                            
+                            return $absolutePath;
+                        } else {
+                            Log::error('Failed to save video file to storage');
+                            return $videoUrl;
+                        }
+                    } else {
+                        Log::error('Downloaded content is not a valid video. Content-Type: ' . $contentType);
+                        return $videoUrl;
+                    }
+                } else {
+                    Log::error('Failed to download video. HTTP Code: ' . $httpCode . ', Content Length: ' . strlen($videoContent));
+                    return $videoUrl; // Retornar URL original si falla
+                }
+            }
+            
+            return $videoUrl; // Retornar URL original si no es de Alibaba
+        } catch (\Exception $e) {
+            Log::error('Error downloading video: ' . $e->getMessage());
+            return $videoUrl; // Retornar URL original en caso de error
+        }
+    }
 
 
     public function index(Request $request)
@@ -147,6 +264,16 @@ class ProductController extends Controller
             ], 404);
         }
 
+        // Obtener las imágenes del producto desde catalogo_producto_media
+        $media = DB::table('catalogo_producto_media')
+            ->where('id_catalogo_producto', $id)
+            ->select('id', 'url', 'type', 'created_at')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Agregar las imágenes al producto
+        $product->media = $media;
+
         return response()->json([
             'status' => 'success',
             'data' => $product,
@@ -155,6 +282,7 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         try {
+            Log::info('Request: ' . json_encode($request->all()));
             $prices = $request->input('prices', []);
 
             // Extraer el primer precio y quantity para el precio principal y moq
@@ -172,22 +300,17 @@ class ProductController extends Controller
                     $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
                     $cleanPrice = trim($cleanPrice);
 
-                    Log::info('First price after cleaning: "' . $cleanPrice . '"');
-
                     // Convertir a float con validación
                     if (!empty($cleanPrice) && is_numeric($cleanPrice)) {
                         $numericPrice = (float)$cleanPrice;
-                        Log::info('First price converted to float: ' . $numericPrice);
                         // Multiplicar por TC
                         $price = $numericPrice * 3.7;
-                        Log::info('First price after multiplication by 3.7: ' . $price);
                     }
                 }
 
                 // Procesar el quantity del primer elemento para el moq
                 if (isset($firstPrice['quantity'])) {
                     $quantity = $firstPrice['quantity'];
-                    Log::info('First quantity: ' . $quantity);
 
                     // Extraer el número del quantity
                     if (preg_match('/^(\d+)/', $quantity, $matches)) {
@@ -198,7 +321,6 @@ class ProductController extends Controller
                         $moq = (int)$matches[1];
                     }
 
-                    Log::info('Extracted MOQ: ' . $moq);
                 }
             }
             //from $images get first 3 images and 1 video if exists and set them to the respective fields
@@ -206,14 +328,29 @@ class ProductController extends Controller
             $mainImage = isset($images[0]) ? $images[0] : null;
             $aditionalImage1 = isset($images[1]) ? $images[1] : null;
             $aditionalImage2 = isset($images[2]) ? $images[2] : null;
-            $aditionalVideo1 = //find in images if there url ends in video extension and set it to the field
-                $aditionalVideo1 = null;
+            $aditionalVideo1 = null;
+            
+            // Procesar imágenes y videos
+            $processedImages = [];
+            $processedVideos = [];
+            
             foreach ($images as $image) {
-                if (str_ends_with($image, '.mp4') || str_ends_with($image, '.mov') || str_ends_with($image, '.avi') || str_ends_with($image, '.wmv') || str_ends_with($image, '.flv') || str_ends_with($image, '.webm')) {
-                    $aditionalVideo1 = $image;
-                    break;
+                if (str_ends_with($image, '.mp4') || str_ends_with($image, '.mov') || str_ends_with($image, '.avi') || str_ends_with($image, '.wmv') || str_ends_with($image, '.flv') || str_ends_with($image, '.webm') ||
+                    strpos($image, 'gv.videocdn.alibaba.com') !== false || 
+                    strpos($image, 'api.allorigins.win') !== false) {
+                    $processedVideos[] = $image;
+                } else {
+                    $processedImages[] = $image;
                 }
             }
+            
+            // Asignar las primeras 3 imágenes
+            $mainImage = isset($processedImages[0]) ? $processedImages[0] : null;
+            $aditionalImage1 = isset($processedImages[1]) ? $processedImages[1] : null;
+            $aditionalImage2 = isset($processedImages[2]) ? $processedImages[2] : null;
+            
+            // Asignar el primer video
+            $aditionalVideo1 = isset($processedVideos[0]) ? $processedVideos[0] : null;
             $year = date('Y');
             $month = date('m');
             $count = DB::table('catalogo_producto')
@@ -229,29 +366,23 @@ class ProductController extends Controller
 
             if ($supplierName) {
                 $supplierName = trim(strtoupper($supplierName));
-                Log::info('Processing supplier: ' . $supplierName);
-
-                // Buscar si el supplier ya existe
                 $existingSupplier = DB::table('catalogo_producto_suppliers')
                     ->where('supplier_name', $supplierName)
                     ->first();
 
                 if ($existingSupplier) {
                     $supplierId = $existingSupplier->id;
-                    Log::info('Found existing supplier with ID: ' . $supplierId);
                 } else {
                     // Crear nuevo supplier
                     $supplierId = DB::table('catalogo_producto_suppliers')->insertGetId([
                         'supplier_name' => $supplierName,
 
                     ]);
-                    Log::info('Created new supplier with ID: ' . $supplierId);
                 }
             }
 
             // Procesar todos los precios del array para prices_range
             foreach ($prices as &$row) {
-                Log::info('Processing price: ' . json_encode($row['price']));
 
                 $cleanPrice = $row['price'];
                 $cleanPrice = str_replace(['USD', ',     ', ' '], '', $cleanPrice);
@@ -259,7 +390,6 @@ class ProductController extends Controller
                 $cleanPrice = str_replace(',', '.', $cleanPrice); // Normalizar decimales
                 $cleanPrice = trim($cleanPrice);
 
-                Log::info('After cleaning: "' . $cleanPrice . '"');
 
                 // Convertir a float con validación
                 if (empty($cleanPrice) || !is_numeric($cleanPrice)) {
@@ -269,15 +399,12 @@ class ProductController extends Controller
                     $numericPrice = (float)$cleanPrice;
                 }
 
-                Log::info('Converted to float: ' . $numericPrice);
 
                 // Multiplicar por TC
                 $finalPrice = $numericPrice * 3.7;
-                Log::info('After multiplication: ' . $finalPrice);
 
                 // Formatear con prefijo
                 $row['price'] = number_format($finalPrice, 2);
-                Log::info('Final formatted price: ' . $row['price']);
             }
 
 
@@ -301,6 +428,46 @@ class ProductController extends Controller
                 'product_details' => json_encode($request->input('iframe_content', [])['reconstructed_html']),
             ];
             $productId = DB::table('catalogo_producto')->insertGetId($data);
+
+            // Procesar y descargar video de Alibaba si existe
+            if ($aditionalVideo1) {
+                $processedVideoUrl = $this->downloadAndSaveVideo($aditionalVideo1, $productId);
+                if ($processedVideoUrl !== $aditionalVideo1) {
+                    // Actualizar el producto con la nueva URL del video
+                    DB::table('catalogo_producto')
+                        ->where('id', $productId)
+                        ->update(['aditional_video1_url' => $processedVideoUrl]);
+                }
+            }
+
+            // Insertar todas las imágenes en la tabla catalogo_producto_media
+            if (!empty($images)) {
+                $mediaData = [];
+                foreach ($images as $imageUrl) {
+                    $type = 'image';
+                    $finalUrl = $imageUrl;
+                    
+                    // Si es un video, procesarlo agrega validacion para que maneje este caso
+                    if (str_ends_with($imageUrl, '.mp4') || str_ends_with($imageUrl, '.mov') || str_ends_with($imageUrl, '.avi') || str_ends_with($imageUrl, '.wmv') || str_ends_with($imageUrl, '.flv') || str_ends_with($imageUrl, '.webm') || 
+                        strpos($imageUrl, 'gv.videocdn.alibaba.com') !== false || 
+                        strpos($imageUrl, 'api.allorigins.win') !== false) {
+                        $type = 'video';
+                        $finalUrl = $this->downloadAndSaveVideo($imageUrl, $productId);
+                    }
+                    
+                    $mediaData[] = [
+                        'id_catalogo_producto' => $productId,
+                        'url' => $finalUrl,
+                        'type' => $type,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                
+                if (!empty($mediaData)) {
+                    DB::table('catalogo_producto_media')->insert($mediaData);
+                }
+            }
 
             return response()->json([
                 'status' => 'success',

@@ -8,38 +8,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Http\Requests\RegisterRequest;
 
 class RegisterController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+        // La validación se ejecuta automáticamente en RegisterRequest
+        // Si falla, se lanza una excepción con status 422
+        $validatedData = $request->validated();
+        
+        try {
+            $user = User::create([
+                'name' => $validatedData['name'],
+                'email' => $validatedData['email'],
+                'password' => Hash::make($validatedData['password']),
+            ]);
+    
+            // Generar token JWT para el usuario registrado
+            $token = JWTAuth::fromUser($user);
+    
+            $user->api_token = $token;
+            $user->save();
+    
+            return response()->json([
+                'message' => 'Usuario registrado correctamente',
+                'user' => $user,
+                'access_token' => $token,
+                'token_type' => 'bearer'
+            ], 201);
+        } catch(\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        // Generar token JWT para el usuario registrado
-        $token = JWTAuth::fromUser($user);
-
-        $user->api_token = $token;
-        $user->save();
-
-        return response()->json([
-            'message' => 'Usuario registrado correctamente',
-            'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'bearer'
-        ], 201);
     }
 }

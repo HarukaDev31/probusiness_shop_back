@@ -11,6 +11,11 @@ class GzipMiddleware
         $response = $next($request);
         
         if (app()->environment('local')) { // Solo en local
+            // No comprimir respuestas de error
+            if ($response->getStatusCode() >= 400) {
+                return $response;
+            }
+            
             $content = $response->getContent();
             $compressed = gzencode($content, 9);
             
