@@ -17,9 +17,9 @@ return new class extends Migration
         // Desactivar foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-        Schema::table('catalogo_producto_category', function (Blueprint $table) {
-            $table->string('img_url')->nullable()->after('slug');
-        });
+        //Schema::table('catalogo_producto_category', function (Blueprint $table) {
+        //    $table->string('img_url')->nullable()->after('slug');
+        //});
 
         // Borrar todas las categorías que no sean las primeras 6
         DB::table('catalogo_producto_category')->where('id', '>', 6)->delete();
