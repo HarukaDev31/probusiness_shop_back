@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('throttle:100,1')->get('/products', [\App\Http\Controllers\ProductController::class, 'index'])->name('products.index');
 Route::middleware('throttle:100,1')->get('/categories', [\App\Http\Controllers\CategoryController::class, 'index'])->name('categories.index');
 Route::middleware('throttle:100,1')->get('/products/{id}', [\App\Http\Controllers\ProductController::class, 'show'])->name('products.show');
-Route::middleware('throttle:5,1')->post('/orders', [\App\Http\Controllers\OrderController::class, 'store'])->name('orders.store');
+Route::middleware(['validate.token', 'throttle:10,1'])->post('/orders', [\App\Http\Controllers\NewOrderController::class, 'store'])->name('orders.new.store');
 //for post products
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
 Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
