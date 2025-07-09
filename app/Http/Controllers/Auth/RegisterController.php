@@ -17,11 +17,13 @@ class RegisterController extends Controller
         // La validación se ejecuta automáticamente en RegisterRequest
         // Si falla, se lanza una excepción con status 422
         $validatedData = $request->validated();
-        
+        //remove + from whatsapp
+        $validatedData['whatsapp'] = str_replace('+', '', $validatedData['whatsapp']);
         try {
             $user = User::create([
                 'name' => $validatedData['name'],
                 'email' => $validatedData['email'],
+                'whatsapp' => $validatedData['whatsapp'],
                 'password' => Hash::make($validatedData['password']),
             ]);
     

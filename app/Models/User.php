@@ -22,6 +22,7 @@ class User extends Authenticatable implements JWTSubject
         'name',
         'email',
         'password',
+        'whatsapp',
         'api_token',
     ];
 
@@ -62,5 +63,13 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
+    }
+
+    /**
+     * Get the wishlist items for the user.
+     */
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
     }
 }

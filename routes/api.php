@@ -24,3 +24,10 @@ Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Au
 Route::middleware('guest.api')->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
 Route::middleware('throttle:20,1')->get('/getProductsToScrapping', [\App\Http\Controllers\ScrappingController::class, 'getProductsToScrapping'])->name('scrapping.getProductsToScrapping');
 Route::middleware('throttle:60,1')->post('/markProductsCompleted', [\App\Http\Controllers\ScrappingController::class, 'markProductsCompleted'])->name('scrapping.markProductsCompleted');
+
+// Wishlist routes
+Route::middleware(['auth.api', 'throttle:20,1'])->group(function () {
+    Route::post('/wishlist', [\App\Http\Controllers\WishlistController::class, 'store'])->name('wishlist.store');
+    Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index'])->name('wishlist.index');
+    Route::delete('/wishlist/{id}', [\App\Http\Controllers\WishlistController::class, 'destroy'])->name('wishlist.destroy');
+});
