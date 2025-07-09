@@ -13,7 +13,7 @@ class AddUrlFieldsToProductsToScrappingTable extends Migration
      */
     public function up()
     {
-        Schema::table('products_to_scrapping', function (Blueprint $table) {
+        Schema::table('catalogo_producto', function (Blueprint $table) {
             $table->text('url_tienda')->nullable()->after('status');
             $table->text('url_alibaba')->nullable()->after('url_tienda');
         });

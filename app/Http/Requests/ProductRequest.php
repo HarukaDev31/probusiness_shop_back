@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 
 class ProductRequest extends FormRequest
 {
@@ -71,7 +72,6 @@ class ProductRequest extends FormRequest
             'supplier_name' => 'required|string|max:255',
             
             // === CAMPOS ADICIONALES ===
-            'category_id' => 'required|integer|exists:catalogo_producto_category,id',
             'delivery_lead_times' => 'nullable|array',
         ];
     }
@@ -144,6 +144,7 @@ class ProductRequest extends FormRequest
      */
     public function failedValidation(Validator $validator)
     {
+        Log::error('Error de validación: ' . json_encode($validator->errors()));
         throw new HttpResponseException(response()->json([
             'status' => 'error',
             'message' => 'Error de validación',
