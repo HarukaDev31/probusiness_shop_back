@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Http\Requests\ProductRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -285,7 +286,7 @@ class ProductController extends Controller
             'data' => $product,
         ], 200);
     }
-    public function store(Request $request)
+    public function store(ProductRequest $request)
     {
         try {
             Log::info('Request: ' . json_encode($request->all()));
@@ -427,6 +428,7 @@ class ProductController extends Controller
                 'aditional_video1_url' => $aditionalVideo1,
                 'moq' => $moq,
                 'status' => "EN TIENDA",
+                'url_alibaba' => $request->input('alibaba_detail_url'),
                 'cod_producto' => $cod_producto,
                 'category_id' => $request->input('category_id'),
                 'supplier_id' => $supplierId,
@@ -437,7 +439,8 @@ class ProductController extends Controller
                 'product_details' => json_encode($request->input('iframe_content', [])['reconstructed_html']),
             ];
             $productId = DB::table('catalogo_producto')->insertGetId($data);
-
+            $url_tienda = $request->input(env('FRONT_URL').'/producto/'.$productId);
+            DB::table('catalogo_producto')->where('id', $productId)->update(['url_tienda' => $url_tienda]);
             // Procesar y descargar video de Alibaba si existe
             if ($aditionalVideo1) {
                 $processedVideoUrl = $this->downloadAndSaveVideo($aditionalVideo1, $productId);
