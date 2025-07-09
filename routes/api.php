@@ -18,6 +18,7 @@ Route::middleware('throttle:100,1')->get('/products', [\App\Http\Controllers\Pro
 Route::middleware('throttle:100,1')->get('/categories', [\App\Http\Controllers\CategoryController::class, 'index'])->name('categories.index');
 Route::middleware('throttle:100,1')->get('/products/{id}', [\App\Http\Controllers\ProductController::class, 'show'])->name('products.show');
 Route::middleware(['validate.token', 'throttle:10,1'])->post('/orders', [\App\Http\Controllers\NewOrderController::class, 'store'])->name('orders.new.store');
+Route::middleware(['validate.token', 'throttle:10,1'])->get('/orders/my-orders', [\App\Http\Controllers\NewOrderController::class, 'myOrders'])->name('orders.my-orders');
 //for post products
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
 Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');

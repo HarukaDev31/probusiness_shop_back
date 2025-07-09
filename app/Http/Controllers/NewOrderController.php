@@ -229,4 +229,92 @@ class NewOrderController extends Controller
 
         return $year . $month . $day . str_pad($sequence, 5, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Obtener las órdenes del usuario
+     */
+    public function myOrders(Request $request)
+    {
+        try {
+            // Obtener el token del header
+            $token = $request->header('Authorization');
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token de autorización requerido'
+                ], 401);
+            }
+
+            // Remover 'Bearer ' del token si está presente
+            $token = str_replace('Bearer ', '', $token);
+
+            // Obtener el usuario por el token
+            $user = DB::table('users')
+                ->where('api_token', $token)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token inválido'
+                ], 401);
+            }
+
+            // Obtener las órdenes del usuario
+            $orders = DB::table('orders')
+                ->where('customer_email', $user->email)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $formattedOrders = [];
+
+            foreach ($orders as $order) {
+                // Obtener los items de la orden
+                $items = DB::table('order_items')
+                    ->where('order_id', $order->id)
+                    ->get();
+
+                $formattedItems = [];
+                foreach ($items as $item) {
+                    $formattedItems[] = [
+                        'productId' => $item->product_id,
+                        'name' => $item->product_name,
+                        'price' => $item->unit_price,
+                        'quantity' => $item->quantity,
+                        'total' => $item->total_price,
+                        'image' => $item->product_image
+                    ];
+                }
+
+                // Calcular fecha estimada de entrega (60 días después de la orden)
+                $estimatedDelivery = Carbon::parse($order->order_date)->addDays(60);
+
+                $formattedOrders[] = [
+                    'id' => 'ORD-' . Carbon::parse($order->order_date)->format('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+                    'orderNumber' => $order->order_number,
+                    'status' => $order->status,
+                    'total' => $order->total_amount,
+                    'orderDate' => Carbon::parse($order->order_date)->toISOString(),
+                    'estimatedDelivery' => $estimatedDelivery->toISOString(),
+                    'items' => $formattedItems
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedOrders
+            ], 200);
+
+        } catch (Exception $e) {
+            Log::error('Error obteniendo órdenes del usuario', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
 } 
