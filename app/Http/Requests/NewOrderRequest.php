@@ -45,7 +45,6 @@ class NewOrderRequest extends FormRequest
             'order.items.*.total' => 'required|numeric|min:0',
             'order.items.*.image' => 'nullable|url|max:500',
             'order.total' => 'required|numeric|min:0',
-            'order.orderNumber' => 'required|string|max:20',
             'order.orderDate' => 'required|date',
             'order.status' => 'required|string|in:pending,processing,shipped,delivered,cancelled',
             
@@ -89,7 +88,6 @@ class NewOrderRequest extends FormRequest
             'order.total.required' => 'El total de la orden es obligatorio',
             'order.total.numeric' => 'El total debe ser un número',
             'order.total.min' => 'El total debe ser mayor a 0',
-            'order.orderNumber.required' => 'El número de orden es obligatorio',
             'order.orderDate.required' => 'La fecha de orden es obligatoria',
             'order.orderDate.date' => 'La fecha de orden debe ser una fecha válida',
             'order.status.required' => 'El estado de la orden es obligatorio',
