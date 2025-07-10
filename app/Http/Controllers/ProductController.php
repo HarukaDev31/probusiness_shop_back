@@ -427,7 +427,7 @@ class ProductController extends Controller
                 'aditional_image2_url' => $aditionalImage2,
                 'aditional_video1_url' => $aditionalVideo1,
                 'moq' => $moq,
-                'status' => "EN TIENDA",
+                'status' => "PENDIENTE",
                 'url_alibaba' => $request->input('alibaba_detail_url'),
                 'cod_producto' => $cod_producto,
                 'category_id' => $request->input('category_id'),
