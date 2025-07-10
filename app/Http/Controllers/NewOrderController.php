@@ -22,6 +22,28 @@ class NewOrderController extends Controller
     {
         DB::beginTransaction();
         try {
+            // Obtener el token del header
+            $token = $request->header('Authorization');
+            if (!$token) {
+                return response()->json([
+                    'error' => 'Token de autorización requerido'
+                ], 401);
+            }
+
+            // Remover 'Bearer ' del token si está presente
+            $token = str_replace('Bearer ', '', $token);
+
+            // Obtener el usuario por el token
+            $user = DB::table('users')
+                ->where('api_token', $token)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Token inválido'
+                ], 401);
+            }
+
             // Validar precios y calcular totales
             $validatedItems = $this->validateAndCalculateItems($request->input('order.items'));
             
@@ -37,6 +59,7 @@ class NewOrderController extends Controller
             
             // Crear la orden principal
             $orderId = DB::table('orders')->insertGetId([
+                'user_id' => $user->id,
                 'order_number' => $orderNumber,
                 'uuid' => Str::uuid()->toString(),
                 
@@ -203,31 +226,40 @@ class NewOrderController extends Controller
     }
 
     /**
-     * Generar número de orden en formato YYMES00001
+     * Generar número de orden en formato YYMMM00001
+     * Donde MMM son las primeras 3 letras del mes en español
      */
     private function generateOrderNumber()
     {
         $year = date('y'); // 24
-        $month = date('m'); // 07
-        $day = date('d'); // 09
+        $month = date('n'); // 1-12 (sin ceros a la izquierda)
         
-        // Obtener el siguiente número de orden para hoy
-        $today = date('Y-m-d');
+        // Array con los nombres de los meses en español
+        $meses = [
+            1 => 'ENE', 2 => 'FEB', 3 => 'MAR', 4 => 'ABR', 5 => 'MAY', 6 => 'JUN',
+            7 => 'JUL', 8 => 'AGO', 9 => 'SEP', 10 => 'OCT', 11 => 'NOV', 12 => 'DIC'
+        ];
+        
+        $mesAbrev = $meses[$month]; // Obtener las 3 letras del mes
+        
+        // Obtener el siguiente número de orden para este mes
+        $currentMonth = date('Y-m');
         $lastOrder = DB::table('orders')
-            ->whereDate('created_at', $today)
+            ->whereYear('created_at', date('Y'))
+            ->whereMonth('created_at', $month)
             ->orderBy('id', 'desc')
             ->first();
 
         $sequence = 1;
         if ($lastOrder) {
-            // Extraer el número de secuencia del último orden del día
+            // Extraer el número de secuencia del último orden del mes
             $lastOrderNumber = $lastOrder->order_number;
             if (preg_match('/\d{5}$/', $lastOrderNumber, $matches)) {
                 $sequence = (int)$matches[0] + 1;
             }
         }
 
-        return $year . $month . $day . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+        return $year . $mesAbrev . str_pad($sequence, 5, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -262,7 +294,7 @@ class NewOrderController extends Controller
 
             // Obtener las órdenes del usuario
             $orders = DB::table('orders')
-                ->where('customer_email', $user->email)
+                ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 

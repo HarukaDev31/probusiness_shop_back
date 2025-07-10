@@ -55,11 +55,11 @@ class ProductRequest extends FormRequest
             
             // === ATRIBUTOS DEL PRODUCTO ===
             'attributes' => 'required|array',
-            'attributes.*' => 'string|max:255',
+            'attributes.*' => 'string|max:2000',
             
             // === INFORMACIÓN DE EMBALAJE ===
             'packaging_info' => 'required|array',
-            'packaging_info.*' => 'string|max:255',
+            'packaging_info.*' => 'string|max:2000',
             
             // === IMÁGENES (MÁXIMO 15) ===
             'images' => 'required|array|min:1|max:15',
