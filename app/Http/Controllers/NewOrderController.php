@@ -103,6 +103,41 @@ class NewOrderController extends Controller
                 ]);
             }
 
+            // Enviar correo de confirmación
+            $customer = [
+                'fullName' => $request->input('customer.fullName'),
+                'dni' => $request->input('customer.dni'),
+                'email' => $request->input('customer.email'),
+                'phone' => $request->input('customer.phone'),
+                'address' => [
+                    'province' => $request->input('customer.address.province'),
+                    'city' => $request->input('customer.address.city'),
+                    'district' => $request->input('customer.address.district'),
+                ],
+            ];
+            $order = [
+                'items' => array_map(function($item) {
+                    return [
+                        'productId' => $item['productId'],
+                        'name' => $item['name'],
+                        'quantity' => $item['quantity'],
+                        'price' => $item['calculated_price'],
+                        'total' => $item['calculated_total'],
+                        'image' => $item['image'] ?? null,
+                    ];
+                }, $validatedItems['items']),
+                'total' => $validatedItems['calculated_total'],
+            ];
+            \Mail::to($customer['email'])->send(
+                new \App\Mail\OrderConfirmationMail(
+                    $customer,
+                    $order,
+                    $orderNumber,
+                    public_path('storage/logo_header.png'),
+                    public_path('storage/logo_footer.png')
+                )
+            );
+
             DB::commit();
 
             Log::info('Orden creada exitosamente', [
@@ -158,7 +193,7 @@ class NewOrderController extends Controller
             $correctPrice = $this->getPriceForQuantity($product, $item['quantity']);
             
             if ($correctPrice === null) {
-                $errors[] = "No hay precio disponible para la cantidad {$item['quantity']} del producto {$product->name}";
+                $errors[] = "No hay precio disponible para la cantidad {$item['quantity']} del producto {$product->nombre}";
                 continue;
             }
 
@@ -167,12 +202,12 @@ class NewOrderController extends Controller
 
             // Verificar si el precio enviado coincide con el calculado
             if (abs($item['price'] - $correctPrice) > 0.01) {
-                $errors[] = "El precio del producto '{$product->name}' no coincide. Enviado: {$item['price']}, Correcto: {$correctPrice}";
+                $errors[] = "El precio del producto '{$product->nombre}' no coincide. Enviado: {$item['price']}, Correcto: {$correctPrice}";
             }
 
             // Verificar si el total del item coincide
             if (abs($item['total'] - $calculatedItemTotal) > 0.01) {
-                $errors[] = "El total del item '{$product->name}' no coincide. Enviado: {$item['total']}, Correcto: {$calculatedItemTotal}";
+                $errors[] = "El total del item '{$product->nombre}' no coincide. Enviado: {$item['total']}, Correcto: {$calculatedItemTotal}";
             }
 
             $validatedItems[] = [
