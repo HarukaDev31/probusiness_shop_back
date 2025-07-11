@@ -444,4 +444,133 @@ class NewOrderController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtener detalles de una orden específica
+     */
+    public function getOrderDetails(Request $request, $orderId)
+    {
+        try {
+            // Obtener el token del header
+            $token = $request->header('Authorization');
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token de autorización requerido'
+                ], 401);
+            }
+
+            // Remover 'Bearer ' del token si está presente
+            $token = str_replace('Bearer ', '', $token);
+
+            // Obtener el usuario por el token
+            $user = DB::table('users')
+                ->where('api_token', $token)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token inválido'
+                ], 401);
+            }
+
+            // Obtener la orden y verificar que pertenece al usuario
+            $order = DB::table('orders')
+                ->where('id', $orderId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Orden no encontrada o no autorizada'
+                ], 404);
+            }
+
+            // Obtener los items de la orden
+            $items = DB::table('order_items')
+                ->where('order_id', $order->id)
+                ->get();
+
+            $formattedItems = [];
+            foreach ($items as $item) {
+                $formattedItems[] = [
+                    'productId' => $item->product_id,
+                    'name' => $item->product_name,
+                    'price' => $item->unit_price,
+                    'quantity' => $item->quantity,
+                    'total' => $item->total_price,
+                    'image' => $item->product_image
+                ];
+            }
+
+            // Calcular fecha estimada de entrega (60 días después de la orden)
+            $estimatedDelivery = Carbon::parse($order->order_date)->addDays(60);
+
+            // Formatear detalles completos de la orden
+            $orderDetails = [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'uuid' => $order->uuid,
+                
+                // Información del cliente
+                'customer' => [
+                    'full_name' => $order->customer_full_name,
+                    'dni' => $order->customer_dni,
+                    'email' => $order->customer_email,
+                    'phone' => $order->customer_phone,
+                    'address' => [
+                        'province' => $order->customer_province,
+                        'city' => $order->customer_city,
+                        'district' => $order->customer_district
+                    ]
+                ],
+                
+                // Información de la orden
+                'order' => [
+                    'status' => $order->status,
+                    'order_date' => Carbon::parse($order->order_date)->toISOString(),
+                    'estimated_delivery' => $estimatedDelivery->toISOString(),
+                    'items' => $formattedItems,
+                    'subtotal' => $order->total_amount,
+                    'total_items' => count($formattedItems)
+                ],
+                
+                // Información de pago (si existe)
+                'payment' => [
+                    'method' => $order->payment_method,
+                    'status' => $order->payment_status,
+                    'amount' => $order->payment_amount ?? $order->total_amount,
+                    'payment_date' => $order->payment_date ? Carbon::parse($order->payment_date)->toISOString() : null,
+                    'transaction_id' => $order->transaction_id,
+                    'notes' => $order->payment_notes
+                ],
+                
+                // Metadata
+                'metadata' => [
+                    'source' => $order->source,
+                    'user_agent' => $order->user_agent,
+                    'timestamp' => $order->timestamp
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $orderDetails
+            ], 200);
+
+        } catch (Exception $e) {
+            Log::error('Error obteniendo detalles de la orden', [
+                'error' => $e->getMessage(),
+                'order_id' => $orderId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
 } 
