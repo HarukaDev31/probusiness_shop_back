@@ -45,3 +45,10 @@ Route::middleware('throttle:100,1')->group(function () {
     Route::post('/location/provincias', [\App\Http\Controllers\LocationController::class, 'getProvincias'])->name('location.provincias');
     Route::post('/location/distritos', [\App\Http\Controllers\LocationController::class, 'getDistritos'])->name('location.distritos');
 });
+
+// Payment routes
+Route::middleware(['validate.token', 'throttle:100,1'])->group(function () {
+    Route::get('/payments/methods', [\App\Http\Controllers\PaymentController::class, 'getPaymentMethods'])->name('payments.methods');
+    Route::get('/payments/history', [\App\Http\Controllers\PaymentController::class, 'getPaymentHistory'])->name('payments.history');
+    Route::get('/payments/details/{orderId}', [\App\Http\Controllers\PaymentController::class, 'getPaymentDetails'])->name('payments.details');
+});
