@@ -21,8 +21,8 @@ Route::middleware(['validate.token', 'throttle:10,1'])->post('/orders', [\App\Ht
 Route::middleware(['validate.token', 'throttle:100,1'])->get('/orders/my-orders', [\App\Http\Controllers\NewOrderController::class, 'myOrders'])->name('orders.my-orders');
 //for post products
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
-Route::middleware('guest.api')->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
-Route::middleware('guest.api')->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
+Route::middleware(['guest.api', 'throttle:5,1'])->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
+Route::middleware(['guest.api', 'throttle:10,1'])->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
 Route::middleware('throttle:20,1')->get('/getProductsToScrapping', [\App\Http\Controllers\ScrappingController::class, 'getProductsToScrapping'])->name('scrapping.getProductsToScrapping');
 Route::middleware('throttle:60,1')->post('/markProductsCompleted', [\App\Http\Controllers\ScrappingController::class, 'markProductsCompleted'])->name('scrapping.markProductsCompleted');
 
@@ -31,4 +31,12 @@ Route::middleware(['auth.api', 'throttle:20,1'])->group(function () {
     Route::post('/wishlist', [\App\Http\Controllers\WishlistController::class, 'store'])->name('wishlist.store');
     Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index'])->name('wishlist.index');
     Route::delete('/wishlist/{id}', [\App\Http\Controllers\WishlistController::class, 'destroy'])->name('wishlist.destroy');
+});
+
+// Location routes
+Route::middleware('throttle:100,1')->group(function () {
+    Route::get('/location/paises', [\App\Http\Controllers\LocationController::class, 'getPaises'])->name('location.paises');
+    Route::get('/location/departamentos', [\App\Http\Controllers\LocationController::class, 'getDepartamentos'])->name('location.departamentos');
+    Route::post('/location/provincias', [\App\Http\Controllers\LocationController::class, 'getProvincias'])->name('location.provincias');
+    Route::post('/location/distritos', [\App\Http\Controllers\LocationController::class, 'getDistritos'])->name('location.distritos');
 });
