@@ -57,6 +57,19 @@ class NewOrderController extends Controller
             // Generar número de orden en formato YYMES00001
             $orderNumber = $this->generateOrderNumber();
             
+            // Obtener nombres de ubicación antes de crear la orden
+            $departamento = DB::table('departamento')
+                ->where('Id_Departamento', $request->input('customer.address.departamento_id'))
+                ->value('No_Departamento');
+            
+            $provincia = DB::table('provincia')
+                ->where('Id_Provincia', $request->input('customer.address.provincia_id'))
+                ->value('No_Provincia');
+            
+            $distrito = DB::table('distrito')
+                ->where('Id_Distrito', $request->input('customer.address.distrito_id'))
+                ->value('No_Distrito');
+
             // Crear la orden principal
             $orderId = DB::table('orders')->insertGetId([
                 'user_id' => $user->id,
@@ -69,10 +82,15 @@ class NewOrderController extends Controller
                 'customer_email' => $request->input('customer.email'),
                 'customer_phone' => $request->input('customer.phone'),
                 
-                // Dirección del cliente
+                // Dirección del cliente (IDs)
                 'customer_departamento_id' => $request->input('customer.address.departamento_id'),
                 'customer_provincia_id' => $request->input('customer.address.provincia_id'),
                 'customer_distrito_id' => $request->input('customer.address.distrito_id'),
+                
+                // Dirección del cliente (nombres)
+                'customer_province' => $provincia,
+                'customer_city' => $departamento,
+                'customer_district' => $distrito,
                 
                 // Información de la orden
                 'total_amount' => $validatedItems['calculated_total'],
@@ -102,19 +120,6 @@ class NewOrderController extends Controller
                     'updated_at' => now(),
                 ]);
             }
-
-            // Obtener nombres de ubicación para el correo
-            $departamento = DB::table('departamento')
-                ->where('Id_Departamento', $request->input('customer.address.departamento_id'))
-                ->value('No_Departamento');
-            
-            $provincia = DB::table('provincia')
-                ->where('Id_Provincia', $request->input('customer.address.provincia_id'))
-                ->value('No_Provincia');
-            
-            $distrito = DB::table('distrito')
-                ->where('Id_Distrito', $request->input('customer.address.distrito_id'))
-                ->value('No_Distrito');
 
             // Enviar correo de confirmación
             $customer = [
