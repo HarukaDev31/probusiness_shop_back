@@ -47,4 +47,4 @@ Route::middleware('throttle:100,1')->group(function () {
 });
 
 // Order details route
-Route::middleware(['validate.token', 'throttle:100,1'])->get('/orders/{orderId}/details', [\App\Http\Controllers\NewOrderController::class, 'getOrderDetails'])->name('orders.details');
+Route::middleware(['validate.token', 'throttle:100,1'])->get('/orders/{orderId}', [\App\Http\Controllers\NewOrderController::class, 'getOrderDetails'])->name('orders.details');

@@ -415,7 +415,7 @@ class NewOrderController extends Controller
                 $estimatedDelivery = Carbon::parse($order->order_date)->addDays(60);
 
                 $formattedOrders[] = [
-                    'id' => 'ORD-' . Carbon::parse($order->order_date)->format('Y') . '-' . str_pad($order->id, 3, '0', STR_PAD_LEFT),
+                    'id' => $order->id,
                     'orderNumber' => $order->order_number,
                     'status' => $order->status,
                     'total' => $order->total_amount,
