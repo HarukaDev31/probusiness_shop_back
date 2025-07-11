@@ -345,11 +345,51 @@ class NewOrderController extends Controller
                 ], 401);
             }
 
-            // Obtener las órdenes del usuario
-            $orders = DB::table('orders')
-                ->where('user_id', $user->id)
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // Obtener el filtro de fecha del query parameter
+            $dateFilter = $request->query('filter');
+
+            // Construir la consulta base
+            $query = DB::table('orders')->where('user_id', $user->id);
+
+            // Aplicar filtros de fecha según el parámetro
+            if ($dateFilter) {
+                switch ($dateFilter) {
+                    case 'last_30_days':
+                        $query->where('order_date', '>=', Carbon::now()->subDays(30));
+                        break;
+                    
+                    case 'last_3_months':
+                        $query->where('order_date', '>=', Carbon::now()->subMonths(3));
+                        break;
+                    
+                    case '2025':
+                        $query->whereYear('order_date', 2025);
+                        break;
+                    
+                    case '2024':
+                        $query->whereYear('order_date', 2024);
+                        break;
+                    
+                    case '2023':
+                        $query->whereYear('order_date', 2023);
+                        break;
+                    
+                    case '2022':
+                        $query->whereYear('order_date', 2022);
+                        break;
+                    
+                    case '2021':
+                        $query->whereYear('order_date', 2021);
+                        break;
+                    
+                    default:
+                        // Si no es un filtro válido, no aplicar filtro
+                        break;
+                }
+            }
+
+            // Obtener las órdenes del usuario con filtros aplicados
+            $orders = $query->orderBy('created_at', 'desc')->get();
 
             $formattedOrders = [];
 
@@ -387,7 +427,9 @@ class NewOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $formattedOrders
+                'data' => $formattedOrders,
+                'filter_applied' => $dateFilter ?? 'all',
+                'total_orders' => count($formattedOrders)
             ], 200);
 
         } catch (Exception $e) {
