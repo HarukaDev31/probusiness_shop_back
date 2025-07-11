@@ -37,7 +37,7 @@ class NewOrderController extends Controller
             $user = DB::table('users')
                 ->where('api_token', $token)
                 ->first();
-
+            
             if (!$user) {
                 return response()->json([
                     'error' => 'Token inválido'
@@ -70,9 +70,9 @@ class NewOrderController extends Controller
                 'customer_phone' => $request->input('customer.phone'),
                 
                 // Dirección del cliente
-                'customer_province' => $request->input('customer.address.province'),
-                'customer_city' => $request->input('customer.address.city'),
-                'customer_district' => $request->input('customer.address.district'),
+                'customer_departamento_id' => $request->input('customer.address.departamento_id'),
+                'customer_provincia_id' => $request->input('customer.address.provincia_id'),
+                'customer_distrito_id' => $request->input('customer.address.distrito_id'),
                 
                 // Información de la orden
                 'total_amount' => $validatedItems['calculated_total'],
@@ -103,6 +103,19 @@ class NewOrderController extends Controller
                 ]);
             }
 
+            // Obtener nombres de ubicación para el correo
+            $departamento = DB::table('departamento')
+                ->where('Id_Departamento', $request->input('customer.address.departamento_id'))
+                ->value('No_Departamento');
+            
+            $provincia = DB::table('provincia')
+                ->where('Id_Provincia', $request->input('customer.address.provincia_id'))
+                ->value('No_Provincia');
+            
+            $distrito = DB::table('distrito')
+                ->where('Id_Distrito', $request->input('customer.address.distrito_id'))
+                ->value('No_Distrito');
+
             // Enviar correo de confirmación
             $customer = [
                 'fullName' => $request->input('customer.fullName'),
@@ -110,9 +123,9 @@ class NewOrderController extends Controller
                 'email' => $request->input('customer.email'),
                 'phone' => $request->input('customer.phone'),
                 'address' => [
-                    'province' => $request->input('customer.address.province'),
-                    'city' => $request->input('customer.address.city'),
-                    'district' => $request->input('customer.address.district'),
+                    'province' => $provincia,
+                    'city' => $departamento,
+                    'district' => $distrito,
                 ],
             ];
             $order = [

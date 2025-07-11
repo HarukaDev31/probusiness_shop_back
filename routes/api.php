@@ -23,6 +23,11 @@ Route::middleware(['validate.token', 'throttle:100,1'])->get('/orders/my-orders'
 Route::middleware('throttle:20,1')->post('/products', [\App\Http\Controllers\ProductController::class, 'store'])->name('products.store');
 Route::middleware(['guest.api', 'throttle:5,1'])->post('/auth/register', [\App\Http\Controllers\Auth\RegisterController::class, 'register'])->name('auth.register');
 Route::middleware(['guest.api', 'throttle:10,1'])->post('/auth/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('auth.login');
+
+// User routes
+Route::middleware(['validate.token', 'throttle:100,1'])->get('/me', [\App\Http\Controllers\UserController::class, 'me'])->name('user.me');
+Route::middleware(['validate.token', 'throttle:20,1'])->put('/me', [\App\Http\Controllers\UserController::class, 'update'])->name('user.update');
+
 Route::middleware('throttle:20,1')->get('/getProductsToScrapping', [\App\Http\Controllers\ScrappingController::class, 'getProductsToScrapping'])->name('scrapping.getProductsToScrapping');
 Route::middleware('throttle:60,1')->post('/markProductsCompleted', [\App\Http\Controllers\ScrappingController::class, 'markProductsCompleted'])->name('scrapping.markProductsCompleted');
 

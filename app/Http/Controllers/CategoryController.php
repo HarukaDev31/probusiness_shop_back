@@ -10,7 +10,9 @@ class CategoryController extends Controller
     public function index()
     {
         // Fetch all categories from the database
-        $categories = DB::table('catalogo_producto_category')->get();
+        $categories = DB::table('catalogo_producto_category')->
+        orderBy('id','asc')->
+        get();
 
         // Return the view with the categories
         return response()->json([
