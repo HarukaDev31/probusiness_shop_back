@@ -437,6 +437,7 @@ class ProductController extends Controller
                 'prices_range' => json_encode($prices),
                 'attributes' => json_encode($request->input('attributes', [])),
                 'product_details' => json_encode($request->input('iframe_content', [])['reconstructed_html']),
+                'created_at' => now(),
             ];
             $productId = DB::table('catalogo_producto')->insertGetId($data);
             $url_tienda = $request->input(env('FRONT_URL').'/producto/'.$productId);
