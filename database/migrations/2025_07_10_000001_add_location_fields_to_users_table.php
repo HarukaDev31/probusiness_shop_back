@@ -25,7 +25,6 @@ class AddLocationFieldsToUsersTable extends Migration
             // Campos adicionales del usuario
             $table->string('dni', 20)->nullable()->after('distrito_id');
             $table->integer('edad')->nullable()->after('dni');
-            
             // Foreign keys
             $table->foreign('departamento_id')->references('Id_Departamento')->on('departamento');
             $table->foreign('provincia_id')->references('Id_Provincia')->on('provincia');
