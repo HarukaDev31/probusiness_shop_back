@@ -17,22 +17,22 @@ class DeleteProductsToScrappingAndEnTiendaProducts extends Migration
     {
         // Desactivar verificación de claves foráneas temporalmente
         DB::statement('SET FOREIGN_KEY_CHECKS = 0;');
-        
+
         // Truncar tabla de productos por scrapear
         if (Schema::hasTable('products_to_scrapping')) {
             DB::table('products_to_scrapping')->truncate();
             Log::info('Tabla products_to_scrapping ha sido truncada completamente');
         }
-        
+
         // Eliminar productos con estado "EN TIENDA" de la tabla catalogo_producto
         if (Schema::hasTable('catalogo_producto')) {
             $deletedCount = DB::table('catalogo_producto')
                 ->where('status', 'EN TIENDA')
                 ->delete();
-            
+
             Log::info("Se eliminaron {$deletedCount} productos con estado 'EN TIENDA' de catalogo_producto");
         }
-        
+
         // Inserción de productos de ejemplo (puedes cambiar el nombre de la tabla si corresponde)
         // CATEGORÍA 1: BEBES (50 productos)
         DB::statement("INSERT INTO products_to_scrapping (category_id, name, status, created_at, updated_at) VALUES
@@ -352,7 +352,7 @@ class DeleteProductsToScrappingAndEnTiendaProducts extends Migration
 (6, 'Protector amplificador', 'pending', NOW(), NOW()),
 (6, 'Funda pedales efectos', 'pending', NOW(), NOW());");
         DB::statement('SET FOREIGN_KEY_CHECKS = 1;');
-        
+
         Log::info('Migración completada: productos_to_scrapping truncada y productos EN TIENDA eliminados');
     }
 

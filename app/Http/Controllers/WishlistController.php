@@ -31,10 +31,13 @@ class WishlistController extends Controller
             ->first();
 
         if ($existingWishlist) {
+            //remove the product from the wishlist
+            $existingWishlist->delete();
+
             return response()->json([
-                'status' => 'error',
-                'message' => 'El producto ya está en tu lista de deseos',
-            ], 400);
+                'status' => 'success',
+                'message' => 'Producto eliminado de la lista de deseos',
+            ], 200);
         }
 
         // Crear el nuevo item en la wishlist

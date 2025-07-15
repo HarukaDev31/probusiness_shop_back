@@ -142,6 +142,18 @@ class ProductController extends Controller
         $page = $request->input('current_page', 1);
         $allCategories = $request->input('all_categories', false);
         $supplierId = $request->input('supplier', null);
+        
+        // Obtener el usuario logueado si existe token
+        $userId = null;
+        $token = $request->header('Authorization');
+        if ($token) {
+            $token = str_replace('Bearer ', '', $token);
+            $user = DB::table('users')->where('api_token', $token)->first();
+            if ($user) {
+                $userId = $user->id;
+            }
+        }
+        
         if ($allCategories) {
             // Obtener todas las categorías
             $categories = DB::table('catalogo_producto_category')->get();
@@ -165,15 +177,33 @@ class ProductController extends Controller
                                 ->orWhere('c.name', 'LIKE', '%' . $search . '%');
                         }
                     })
-
                     ->orderBy('p.id')
-                    ->limit($perCategory) // 5 productos por categoría
+                    ->limit($perCategory)
                     ->get();
 
                 $productsByCategory = $productsByCategory->merge($products);
             }
 
             $total = $productsByCategory->count();
+
+            // Agregar campo is_in_wishlist si hay usuario logueado
+            if ($userId) {
+                $productsByCategory = $productsByCategory->map(function ($product) use ($userId) {
+                    $isInWishlist = DB::table('wishlists')
+                        ->where('user_id', $userId)
+                        ->where('product_id', $product->id)
+                        ->exists();
+                    
+                    $product->is_in_wishlist = $isInWishlist;
+                    return $product;
+                });
+            } else {
+                // Si no hay usuario logueado, todos los productos tienen is_in_wishlist = false
+                $productsByCategory = $productsByCategory->map(function ($product) {
+                    $product->is_in_wishlist = false;
+                    return $product;
+                });
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -237,6 +267,25 @@ class ProductController extends Controller
                 ->orderBy('p.id')
                 ->get();
 
+            // Agregar campo is_in_wishlist si hay usuario logueado
+            if ($userId) {
+                $products = $products->map(function ($product) use ($userId) {
+                    $isInWishlist = DB::table('wishlists')
+                        ->where('user_id', $userId)
+                        ->where('product_id', $product->id)
+                        ->exists();
+                    
+                    $product->is_in_wishlist = $isInWishlist;
+                    return $product;
+                });
+            } else {
+                // Si no hay usuario logueado, todos los productos tienen is_in_wishlist = false
+                $products = $products->map(function ($product) {
+                    $product->is_in_wishlist = false;
+                    return $product;
+                });
+            }
+
             return response()->json([
                 'status' => 'success',
                 'data' => $products,
@@ -280,6 +329,29 @@ class ProductController extends Controller
 
         // Agregar las imágenes al producto
         $product->media = $media;
+
+        // Obtener el usuario logueado si existe token
+        $userId = null;
+        $token = request()->header('Authorization');
+        if ($token) {
+            $token = str_replace('Bearer ', '', $token);
+            $user = DB::table('users')->where('api_token', $token)->first();
+            if ($user) {
+                $userId = $user->id;
+            }
+        }
+
+        // Agregar campo is_in_wishlist
+        if ($userId) {
+            $isInWishlist = DB::table('wishlists')
+                ->where('user_id', $userId)
+                ->where('product_id', $product->id)
+                ->exists();
+            
+            $product->is_in_wishlist = $isInWishlist;
+        } else {
+            $product->is_in_wishlist = false;
+        }
 
         return response()->json([
             'status' => 'success',
