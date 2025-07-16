@@ -44,15 +44,6 @@ class NewOrderController extends Controller
                 ], 401);
             }
 
-            // Validar precios y calcular totales
-            $validatedItems = $this->validateAndCalculateItems($request->input('order.items'));
-            
-            if (!$validatedItems['valid']) {
-                return response()->json([
-                    'error' => 'Error en validación de precios',
-                    'details' => $validatedItems['errors']
-                ], 422);
-            }
 
             // Generar número de orden en formato YYMES00001
             $orderNumber = $this->generateOrderNumber();
