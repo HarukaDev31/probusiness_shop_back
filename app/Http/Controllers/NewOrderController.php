@@ -44,7 +44,7 @@ class NewOrderController extends Controller
                 ], 401);
             }
 
-
+            $validatedItems = $this->validateAndCalculateItems($request->input('order.items'));
             // Generar número de orden en formato YYMES00001
             $orderNumber = $this->generateOrderNumber();
             
