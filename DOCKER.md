@@ -6,12 +6,12 @@ El servicio corre en contenedores con PHP 8.5.12 y Laravel 13. No hace falta ins
 
 | Servicio | Qué hace | Puerto (solo 127.0.0.1) |
 |---|---|---|
-| `app` | php-fpm 8.5.12 con el código | `DOCKER_FPM_PORT` (9384) |
-| `web` | nginx que sirve `public/` y pasa PHP a `app` | `DOCKER_HTTP_PORT` (8384) |
+| `app` | php-fpm 8.5.12 con el código | `DOCKER_FPM_PORT` (9385) |
+| `web` | nginx que sirve `public/` y pasa PHP a `app` | `DOCKER_HTTP_PORT` (8385) |
 
 - Los dos usan `network_mode: host`, así que la app se conecta a la **MySQL del propio servidor** con las credenciales
   del `.env` de la carpeta donde se hace el pull (no se levanta MySQL en Docker). `DB_HOST=127.0.0.1` sigue funcionando.
-- Los puertos 9384 y 8384 evitan chocar con php-fpm 7.4 y con redis-laravel (9383/8383). Se pueden cambiar con
+- Los puertos 9385 y 8385 evitan chocar con php-fpm 7.4, con redis-laravel (9383/8383) y con cursoback (9384/8384). Se pueden cambiar con
   `DOCKER_FPM_PORT` o `DOCKER_HTTP_PORT` en el `.env`.
 - `storage/` se monta desde la carpeta del servidor (logs y videos de productos se conservan). Los videos
   (`storage/app/public/videos`) también se montan en el nginx del contenedor para que `/storage/videos/...` siga sirviéndose.
@@ -31,7 +31,7 @@ Luego, en el nginx del servidor, el sitio de tiendaback pasa de `fastcgi_pass` a
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:8384;
+    proxy_pass http://127.0.0.1:8385;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

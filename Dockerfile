@@ -13,7 +13,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zz-app.conf
 
-ENV FPM_PORT=9384
+ENV FPM_PORT=9385
 
 WORKDIR /var/www/html
 
