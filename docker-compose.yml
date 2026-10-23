@@ -1,0 +1,40 @@
+# tiendaback (probusiness_shop_back) en PHP 8.5.12.
+#
+# Todo corre con network_mode: host para que la app use la MySQL del propio servidor
+# con las mismas credenciales del .env de esta carpeta (DB_HOST=127.0.0.1 sigue sirviendo).
+# Por eso cada servicio escucha en un puerto propio de localhost:
+#   - php-fpm: DOCKER_FPM_PORT (9385 por defecto)
+#   - nginx: DOCKER_HTTP_PORT (8385 por defecto) -> el nginx del servidor hace proxy_pass aquí
+#
+# Uso: docker compose up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      target: app
+    image: tiendaback:php8.5
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      FPM_PORT: ${DOCKER_FPM_PORT:-9385}
+    volumes:
+      - ./storage:/var/www/html/storage
+
+  web:
+    build:
+      context: .
+      target: web
+    image: tiendaback-web:php8.5
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      HTTP_PORT: ${DOCKER_HTTP_PORT:-8385}
+      FPM_PORT: ${DOCKER_FPM_PORT:-9385}
+      NGINX_ENVSUBST_FILTER: "HTTP_PORT|FPM_PORT"
+    volumes:
+      # videos de productos que guarda la app (equivale a public/storage -> storage/app/public)
+      - ./storage/app/public/videos:/var/www/html/public/storage/videos:ro
+    depends_on:
+      - app
